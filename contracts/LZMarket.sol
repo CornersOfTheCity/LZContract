@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-contract LZMarket is Ownable, IERC721Receiver {
+contract LZMarket is Ownable {
     using SafeMath for uint;
 
     address private nftAddress;
@@ -18,7 +18,7 @@ contract LZMarket is Ownable, IERC721Receiver {
         address buyer;
         uint256 startTime;
         uint256 lastTime;
-        uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:buy 4:lost 
+        uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:bought 4:lost 
     }
 
     mapping(uint256 => Lmarket) public lMarkets;
@@ -29,6 +29,19 @@ contract LZMarket is Ownable, IERC721Receiver {
         nftAddress = nft;
     }
 
+    event Sell(uint256 nftId,uint256 nftPrice,uint256 timeLast);
+    event CancelSell(uint256 tokenId);
+    event Buy(uint256 tokenId, address buyer);
+    event Retrieval(uint256 tokenId);
+
+    /*
+     * @description: sell NFT
+     * @param  {*}
+     * @return {*}
+     * @param {uint256} nftId
+     * @param {uint256} nftPrice
+     * @param {uint256} timeLast
+     */    
     function sell(uint256 nftId,uint256 nftPrice,uint256 timeLast) external {
         Lmarket memory sellNft;
         sellNft.owner = _msgSender();
@@ -43,19 +56,44 @@ contract LZMarket is Ownable, IERC721Receiver {
         IERC721(nftAddress).safeTransferFrom(_msgSender(), address(this), nftId);
         globalId ++;
 
+        emit Sell(nftId,nftPrice,timeLast);
     }
 
+    /*
+     * @description: stop selling
+     * @param  {*}
+     * @return {*}
+     * @param {uint256} nftId
+     */    
     function cancelSell(uint256 nftId) external {
         require(_msgSender() == lMarkets[nftId].owner,"not NFT owner");
-        lMarkets[nftId].state = 2;
+        require(lMarkets[nftId].state == 1,"not onsell");
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
+        lMarkets[nftId].state = 2;
+        emit CancelSell(nftId);
     }
 
+    /*
+     * @description: buy NFT
+     * @param  {*}
+     * @return {*}
+     * @param {uint256} nftId
+     */    
     function buy(uint256 nftId) external payable {
-
-
+        require(msg.value == lMarkets[nftId].price,"wrong msg value");
+        require(lMarkets[nftId].state == 1,"not onsell");
+        payable(address(lMarkets[nftId].owner)).transfer(lMarkets[nftId].price);
+        IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
+        lMarkets[nftId].state = 3;
+        emit Buy(nftId, _msgSender());
     }
 
+    /*
+     * @description: claim NFT
+     * @param  {*}
+     * @return {*}
+     * @param {uint256} nftId
+     */    
     function retrieval(uint256 nftId) external {
         require(_msgSender() == lMarkets[nftId].owner,"not NFT owner");
 
@@ -63,6 +101,7 @@ contract LZMarket is Ownable, IERC721Receiver {
         require(stopTime<=block.timestamp,"time not arrive");
 
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
+        lMarkets[nftId].state = 4;
 
     }
 

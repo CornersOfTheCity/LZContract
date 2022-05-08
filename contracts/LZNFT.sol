@@ -4,10 +4,9 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-contract LZNFT is Ownable, ERC721Enumerable, IERC721Receiver {
+contract LZNFT is Ownable,ERC721Enumerable {
     using SafeMath for uint256;
 
     struct LNFT {
@@ -22,7 +21,7 @@ contract LZNFT is Ownable, ERC721Enumerable, IERC721Receiver {
 
     mapping(uint256 => LNFT) public LNFTs;
 
-    constructor(){}
+    constructor() ERC721("LZNFT", "LZNFT") Ownable(){}
 
     function changeMintFee(uint256 newFee) external onlyOwner{
         mintFee = newFee;
@@ -41,7 +40,7 @@ contract LZNFT is Ownable, ERC721Enumerable, IERC721Receiver {
 
     function createWithFee(string memory name,string memory url,string memory explain) external payable {
         require(msg.value == mintFee,"wrong msg value");
-        payable(address(this)).transfer(mintFee);
+        payable(address(owner())).transfer(mintFee);
 
         LNFT memory lnft;
         lnft.lName = name;
@@ -51,13 +50,6 @@ contract LZNFT is Ownable, ERC721Enumerable, IERC721Receiver {
         _safeMint(_msgSender(), totalId);
         LNFTs[totalId] = lnft;
         totalId++;
-
-    }
-
-    function claimFee() external payable onlyOwner{
-        if(address(this).balance>0){
-          payable(owner()).transfer(address(this).balance);
-        }
     }
 
    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
