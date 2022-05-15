@@ -1360,6 +1360,7 @@ contract LZNFT is Ownable,ERC721Enumerable {
         string lName;
         string lUrl;
         string lExplain;
+        uint256 id;
     }
 
     uint256 totalId = 0;
@@ -1382,19 +1383,16 @@ contract LZNFT is Ownable,ERC721Enumerable {
      * @param {string memory} url
      * @param {string memory} explain
      */    
-    function mintFree(string[] memory name,string[] memory url,string[] memory explain) external onlyOwner {
-        require(name.length == url.length,"name and url length not equal");
-        require(name.length == explain.length,"explain and url length not equal");
-        for (uint8 i = 0; i < name.length; i++) {
-            LNFT memory lnft;
-            lnft.lName = name[i];
-            lnft.lUrl = url[i];
-            lnft.lExplain = explain[i];
+    function mintFree(string memory name,string memory url,string memory explain,uint256 id) external onlyOwner {
+        LNFT memory lnft;
+        lnft.lName = name;
+        lnft.lUrl = url;
+        lnft.lExplain = explain;
+        lnft.id = id;
 
-            _safeMint(_msgSender(), totalId);
-            LNFTs[totalId] = lnft;
-            totalId++;
-        }
+        _safeMint(_msgSender(), totalId);
+        LNFTs[totalId] = lnft;
+        totalId++;
         
     }
 
@@ -1406,22 +1404,20 @@ contract LZNFT is Ownable,ERC721Enumerable {
      * @param {string[] memory} url
      * @param {string[] memory} explain
      */    
-    function mintWithFee(string[] memory name,string[] memory url,string[] memory explain) external payable {
-       
-        require(name.length == url.length,"name and url length not equal");
-        require(name.length == explain.length,"explain and url length not equal");
-        require(msg.value == mintFee * name.length,"wrong msg value");
-        payable(address(owner())).transfer(mintFee * name.length);
-        for (uint8 i = 0; i < name.length; i++) {
-            LNFT memory lnft;
-            lnft.lName = name[i];
-            lnft.lUrl = url[i];
-            lnft.lExplain = explain[i];
+    function mintWithFee(string memory name,string memory url,string memory explain,uint256 id) external payable {
+        require(msg.value == mintFee ,"wrong msg value");
+        payable(address(owner())).transfer(mintFee);
 
-            _safeMint(_msgSender(), totalId);
-            LNFTs[totalId] = lnft;
-            totalId++;
-        }
+        LNFT memory lnft;
+        lnft.lName = name;
+        lnft.lUrl = url;
+        lnft.lExplain = explain;
+        lnft.id = id;
+
+        _safeMint(_msgSender(), totalId);
+        LNFTs[totalId] = lnft;
+        totalId++;
+
     }
 
    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {

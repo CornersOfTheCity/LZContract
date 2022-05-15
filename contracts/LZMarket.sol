@@ -459,23 +459,21 @@ contract LZMarket is Ownable {
 
     struct Lmarket {
         address owner;
-        uint256 nftId;
+        uint256 num;
         uint256 price;
         address buyer;
-        uint256 startTime;
-        uint256 lastTime;
         uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:bought 4:lost 
     }
 
     mapping(uint256 => Lmarket) public lMarkets;
 
-    uint256 globalId = 0;
+    uint256 public globalId = 0;
 
     constructor(address nft){
         nftAddress = nft;
     }
 
-    event Sell(uint256 nftId,uint256 nftPrice,uint256 timeLast);
+    event Sell(uint256 nftId,uint256 nftPricet);
     event CancelSell(uint256 tokenId);
     event Buy(uint256 tokenId, address buyer);
     event Retrieval(uint256 tokenId);
@@ -488,21 +486,19 @@ contract LZMarket is Ownable {
      * @param {uint256} nftPrice
      * @param {uint256} timeLast
      */    
-    function sell(uint256 nftId,uint256 nftPrice,uint256 timeLast) external {
+    function sell(uint256 nftId,uint256 nftPrice) external {
         Lmarket memory sellNft;
         sellNft.owner = _msgSender();
-        sellNft.nftId = nftId;
+        sellNft.num = globalId;
         sellNft.price = nftPrice;
-        sellNft.startTime = block.timestamp;
-        sellNft.lastTime = timeLast;
         sellNft.state = 1;
 
-        lMarkets[globalId] = sellNft;
+        lMarkets[nftId] = sellNft;
 
         IERC721(nftAddress).safeTransferFrom(_msgSender(), address(this), nftId);
         globalId ++;
 
-        emit Sell(nftId,nftPrice,timeLast);
+        emit Sell(nftId,nftPrice);
     }
 
     /*
@@ -542,9 +538,6 @@ contract LZMarket is Ownable {
      */    
     function retrieval(uint256 nftId) external {
         require(_msgSender() == lMarkets[nftId].owner,"not NFT owner");
-
-        uint256 stopTime = lMarkets[nftId].startTime + lMarkets[nftId].lastTime; 
-        require(stopTime<=block.timestamp,"time not arrive");
 
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         lMarkets[nftId].state = 4;
