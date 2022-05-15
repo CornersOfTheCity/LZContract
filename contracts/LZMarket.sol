@@ -462,7 +462,7 @@ contract LZMarket is Ownable {
         uint256 num;
         uint256 price;
         address buyer;
-        uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:bought 4:lost 
+        uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:bought 
     }
 
     mapping(uint256 => Lmarket) public lMarkets;
@@ -528,20 +528,6 @@ contract LZMarket is Ownable {
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         lMarkets[nftId].state = 3;
         emit Buy(nftId, _msgSender());
-    }
-
-    /*
-     * @description: claim NFT
-     * @param  {*}
-     * @return {*}
-     * @param {uint256} nftId
-     */    
-    function retrieval(uint256 nftId) external {
-        require(_msgSender() == lMarkets[nftId].owner,"not NFT owner");
-
-        IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
-        lMarkets[nftId].state = 4;
-
     }
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
