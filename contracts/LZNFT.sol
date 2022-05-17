@@ -1356,6 +1356,8 @@ abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
 contract LZNFT is Ownable,ERC721Enumerable {
     using SafeMath for uint256;
 
+    address public receiverAddress;
+
     struct LNFT {
         string lName;
         string lUrl;
@@ -1369,10 +1371,16 @@ contract LZNFT is Ownable,ERC721Enumerable {
 
     mapping(uint256 => LNFT) public LNFTs;
 
-    constructor() ERC721("LZNFT", "LZNFT") Ownable(){}
+    constructor(address receiver) ERC721("LZNFT", "LZNFT") Ownable(){
+        receiverAddress = receiver;
+    }
 
     function changeMintFee(uint256 newFee) external onlyOwner{
         mintFee = newFee;
+    }
+
+    function changeReceiverAddress (address newReceiver) external onlyOwner{
+        receiverAddress = newReceiver;
     }
 
     /*
@@ -1406,7 +1414,7 @@ contract LZNFT is Ownable,ERC721Enumerable {
      */    
     function mintWithFee(string memory name,string memory url,string memory explain,uint256 id) external payable {
         require(msg.value == mintFee ,"wrong msg value");
-        payable(address(owner())).transfer(mintFee);
+        payable(address(receiverAddress)).transfer(mintFee);
 
         LNFT memory lnft;
         lnft.lName = name;

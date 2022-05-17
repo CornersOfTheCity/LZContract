@@ -452,7 +452,7 @@ interface IERC721 is IERC165 {
     function isApprovedForAll(address owner, address operator) external view returns (bool);
 }
 
-contract LZMarket is Ownable {
+contract FixedPrice is Ownable {
     using SafeMath for uint;
 
     address private nftAddress;
@@ -473,10 +473,9 @@ contract LZMarket is Ownable {
         nftAddress = nft;
     }
 
-    event Sell(uint256 nftId,uint256 nftPricet);
-    event CancelSell(uint256 tokenId);
-    event Buy(uint256 tokenId, address buyer);
-    event Retrieval(uint256 tokenId);
+    event Sell(address seller,uint256 nftId,uint256 nftPricet);
+    event CancelSell(address canceler, uint256 tokenId);
+    event Buy(address buyer,uint256 tokenId, uint256 price);
 
     /*
      * @description: sell NFT
@@ -498,7 +497,7 @@ contract LZMarket is Ownable {
         IERC721(nftAddress).safeTransferFrom(_msgSender(), address(this), nftId);
         globalId ++;
 
-        emit Sell(nftId,nftPrice);
+        emit Sell(_msgSender(),nftId,nftPrice);
     }
 
     /*
@@ -512,7 +511,7 @@ contract LZMarket is Ownable {
         require(lMarkets[nftId].state == 1,"not onsell");
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         lMarkets[nftId].state = 2;
-        emit CancelSell(nftId);
+        emit CancelSell(_msgSender(),nftId);
     }
 
     /*
@@ -527,7 +526,7 @@ contract LZMarket is Ownable {
         payable(address(lMarkets[nftId].owner)).transfer(lMarkets[nftId].price);
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         lMarkets[nftId].state = 3;
-        emit Buy(nftId, _msgSender());
+        emit Buy(_msgSender(),nftId,msg.value );
     }
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
