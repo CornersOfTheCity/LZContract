@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-//pragma experimental ABIEncoderV2;
 
 // import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 // import "@openzeppelin/contracts/access/Ownable.sol";
@@ -517,6 +516,7 @@ contract AuctionMarket is Ownable, IERC721Receiver {
         require(AMarkets[nftId].newestTime+AMarkets[nftId].timeLast>=block.timestamp,"cannot bid already");
         require(AMarkets[nftId].price+bidAdd<=msg.value,"too less value");
 
+        payable(address(AMarkets[nftId].newestBuyer)).transfer(AMarkets[nftId].price);
         AMarkets[nftId].price = msg.value;
         AMarkets[nftId].newestBuyer = _msgSender();
         AMarkets[nftId].newestTime = block.timestamp;
@@ -548,7 +548,4 @@ contract AuctionMarket is Ownable, IERC721Receiver {
 
     receive() external payable {}
     fallback() external payable{}
-
-
-
 }
