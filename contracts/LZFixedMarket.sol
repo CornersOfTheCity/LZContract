@@ -465,7 +465,7 @@ contract FixedPrice is Ownable {
         uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:bought 
     }
 
-    mapping(uint256 => Lmarket) public lMarkets;
+    mapping(uint256 => Lmarket) public FMarkets;
 
     uint256 public globalId = 0;
 
@@ -492,7 +492,7 @@ contract FixedPrice is Ownable {
         sellNft.price = nftPrice;
         sellNft.state = 1;
 
-        lMarkets[nftId] = sellNft;
+        FMarkets[nftId] = sellNft;
 
         IERC721(nftAddress).safeTransferFrom(_msgSender(), address(this), nftId);
         globalId ++;
@@ -507,10 +507,10 @@ contract FixedPrice is Ownable {
      * @param {uint256} nftId
      */    
     function cancelSell(uint256 nftId) external {
-        require(_msgSender() == lMarkets[nftId].owner,"not NFT owner");
-        require(lMarkets[nftId].state == 1,"not onsell");
+        require(_msgSender() == FMarkets[nftId].owner,"not NFT owner");
+        require(FMarkets[nftId].state == 1,"not onsell");
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
-        lMarkets[nftId].state = 2;
+        FMarkets[nftId].state = 2;
         emit CancelSell(_msgSender(),nftId);
     }
 
@@ -521,11 +521,11 @@ contract FixedPrice is Ownable {
      * @param {uint256} nftId
      */    
     function buy(uint256 nftId) external payable {
-        require(msg.value == lMarkets[nftId].price,"wrong msg value");
-        require(lMarkets[nftId].state == 1,"not onsell");
-        payable(address(lMarkets[nftId].owner)).transfer(lMarkets[nftId].price);
+        require(msg.value == FMarkets[nftId].price,"wrong msg value");
+        require(FMarkets[nftId].state == 1,"not onsell");
+        payable(address(FMarkets[nftId].owner)).transfer(FMarkets[nftId].price);
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
-        lMarkets[nftId].state = 3;
+        FMarkets[nftId].state = 3;
         emit Buy(_msgSender(),nftId,msg.value );
     }
 
@@ -534,7 +534,6 @@ contract FixedPrice is Ownable {
     }
 
     receive() external payable {}
-
     fallback() external payable{}
 
 }
