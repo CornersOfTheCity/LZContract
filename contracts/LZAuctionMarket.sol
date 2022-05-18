@@ -451,7 +451,7 @@ interface IERC721 is IERC165 {
     function isApprovedForAll(address owner, address operator) external view returns (bool);
 }
 
-contract AuctionMarket is Ownable, IERC721Receiver {
+contract AuctionMarket is Ownable {
     using SafeMath for uint256;
     address private nftAddress;
 
