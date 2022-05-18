@@ -478,7 +478,7 @@ contract AuctionMarket is Ownable, IERC721Receiver {
 
     event Sell(address seller,uint256 nftId,uint256 nftPricet,uint256 timeLast);
     event CancelSell(address canceler, uint256 tokenId);
-    event Bid(address bider,uint256 tokenId, uint256 price);
+    event Bid(address bider,uint256 tokenId, uint256 price,uint256 newStartTime);
     event Claim(address claimer,uint256 tokenId);
     event Retrieval(address retrievaler,uint256 tokenId);
 
@@ -520,7 +520,7 @@ contract AuctionMarket is Ownable, IERC721Receiver {
         AMarkets[nftId].price = msg.value;
         AMarkets[nftId].newestBuyer = _msgSender();
         AMarkets[nftId].newestTime = block.timestamp;
-        emit Bid(_msgSender(),nftId,msg.value);
+        emit Bid(_msgSender(),nftId,msg.value,block.timestamp);
     }
 
     function claim(uint256 nftId) external {
