@@ -1393,7 +1393,7 @@ contract LZNFT is Ownable,ERC721Enumerable {
         receiverAddress = newReceiver;
     }
 
-    event Mint(address minter,uint256 nftId,uint256 mintType,uint256 mintFee);
+    event Mint(address minter,uint256 nftId,uint256 feeType,uint256 mintFee);
 
     /*
      * @description: mintFree
