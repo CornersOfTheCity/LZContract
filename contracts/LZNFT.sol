@@ -1367,7 +1367,13 @@ contract LZNFT is Ownable,ERC721Enumerable {
 
     uint256 totalId = 0;
 
-    uint256 mintFee = 0;
+    uint256 mintMainFee = 0;
+
+    uint256 mintTokenFee = 0;
+
+    uint256 constant USE_MAIN = 0;
+    uint256 constant USE_USDT = 1;
+    uint256 constant USE_None = 2;
 
     mapping(uint256 => LNFT) public LNFTs;
 
@@ -1375,15 +1381,19 @@ contract LZNFT is Ownable,ERC721Enumerable {
         receiverAddress = receiver;
     }
 
-    function changeMintFee(uint256 newFee) external onlyOwner{
-        mintFee = newFee;
+    function changeMintMainFee(uint256 newFee) external onlyOwner{
+        mintMainFee = newFee;
     }
 
-    function changeReceiverAddress (address newReceiver) external onlyOwner{
+    function changeMintTokenFee(uint256 newFee) external onlyOwner{
+        mintTokenFee = newFee;
+    }
+
+    function changeReceiverAddress(address newReceiver) external onlyOwner{
         receiverAddress = newReceiver;
     }
 
-    event Mint();
+    event Mint(address minter,uint256 nftId,uint256 mintType,uint256 mintFee);
 
     /*
      * @description: mintFree
@@ -1403,7 +1413,8 @@ contract LZNFT is Ownable,ERC721Enumerable {
         _safeMint(_msgSender(), totalId);
         LNFTs[totalId] = lnft;
         totalId++;
-        
+
+        emit Mint(_msgSender(), totalId--, USE_None,0);
     }
 
     /*
@@ -1414,10 +1425,15 @@ contract LZNFT is Ownable,ERC721Enumerable {
      * @param {string[] memory} url
      * @param {string[] memory} explain
      */    
-    function mintWithFee(string memory name,string memory url,string memory explain,uint256 id) external payable {
-        require(msg.value == mintFee ,"wrong msg value");
-        payable(address(receiverAddress)).transfer(mintFee);
+    function mintWithFee(string memory name,string memory url,string memory explain,uint256 id,uint256 mintType) external payable {
+        require(mintType == 0||mintType == 1,"wrong type");
+        if(mintType == USE_MAIN){
+            require(msg.value == mintMainFee ,"wrong msg value");
+            payable(address(receiverAddress)).transfer(mintMainFee);
+        }else{
 
+        }
+       
         LNFT memory lnft;
         lnft.lName = name;
         lnft.lUrl = url;
@@ -1428,6 +1444,11 @@ contract LZNFT is Ownable,ERC721Enumerable {
         LNFTs[totalId] = lnft;
         totalId++;
 
+        if(mintType == USE_MAIN){
+            emit Mint(_msgSender(), totalId--, USE_MAIN,mintMainFee);
+        }else{
+            emit Mint(_msgSender(), totalId--, USE_USDT,mintTokenFee);
+        }
     }
 
    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {

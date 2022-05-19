@@ -460,8 +460,10 @@ contract FixedPrice is Ownable {
     struct Lmarket {
         address owner;
         uint256 num;
-        uint256 price;
+        uint256 mainPrice;
+        uint256 tokenPrice;
         address buyer;
+        uint256 buyType;
         uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:bought 
     }
 
@@ -469,13 +471,17 @@ contract FixedPrice is Ownable {
 
     uint256 public globalId = 0;
 
+    uint256 constant USE_MAIN = 0;
+    uint256 constant USE_USDT = 1;
+
+
     constructor(address nft){
         nftAddress = nft;
     }
 
-    event Sell(address seller,uint256 nftId,uint256 nftPricet);
-    event CancelSell(address canceler, uint256 tokenId);
-    event Buy(address buyer,uint256 tokenId, uint256 price);
+    event FixedSell(address seller,uint256 nftId,uint256 mainPrice,uint256 tokenPrice);
+    event FixedCancelSell(address canceler, uint256 tokenId);
+    event FixedBuy(address buyer,uint256 tokenId,uint256 tokenType,uint256 price);
 
     /*
      * @description: sell NFT
@@ -485,11 +491,12 @@ contract FixedPrice is Ownable {
      * @param {uint256} nftPrice
      * @param {uint256} timeLast
      */    
-    function sell(uint256 nftId,uint256 nftPrice) external {
+    function sell(uint256 nftId,uint256 priceMain,uint256 priceToken) external {
         Lmarket memory sellNft;
         sellNft.owner = _msgSender();
         sellNft.num = globalId;
-        sellNft.price = nftPrice;
+        sellNft.mainPrice = priceMain;
+        sellNft.tokenPrice = priceToken;
         sellNft.state = 1;
 
         FMarkets[nftId] = sellNft;
@@ -497,7 +504,7 @@ contract FixedPrice is Ownable {
         IERC721(nftAddress).safeTransferFrom(_msgSender(), address(this), nftId);
         globalId ++;
 
-        emit Sell(_msgSender(),nftId,nftPrice);
+        emit FixedSell(_msgSender(),nftId,priceMain,priceToken);
     }
 
     /*
@@ -511,7 +518,7 @@ contract FixedPrice is Ownable {
         require(FMarkets[nftId].state == 1,"not onsell");
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         FMarkets[nftId].state = 2;
-        emit CancelSell(_msgSender(),nftId);
+        emit FixedCancelSell(_msgSender(),nftId);
     }
 
     /*
@@ -520,13 +527,25 @@ contract FixedPrice is Ownable {
      * @return {*}
      * @param {uint256} nftId
      */    
-    function buy(uint256 nftId) external payable {
-        require(msg.value == FMarkets[nftId].price,"wrong msg value");
+    function buy(uint256 nftId,uint256 tokenType) external payable {
         require(FMarkets[nftId].state == 1,"not onsell");
-        payable(address(FMarkets[nftId].owner)).transfer(FMarkets[nftId].price);
+        require(tokenType == 0||tokenType == 1,"wrong type");
+        if(tokenType == USE_MAIN){
+            require(msg.value == FMarkets[nftId].mainPrice,"wrong msg value");
+            payable(address(FMarkets[nftId].owner)).transfer(FMarkets[nftId].mainPrice);
+            FMarkets[nftId].buyType = USE_MAIN;
+        }else{
+
+            FMarkets[nftId].buyType = USE_USDT;
+        }
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         FMarkets[nftId].state = 3;
-        emit Buy(_msgSender(),nftId,msg.value );
+
+        if(tokenType==USE_MAIN){
+            emit FixedBuy(_msgSender(),nftId,USE_MAIN,FMarkets[nftId].mainPrice);
+        }else{
+            emit FixedBuy(_msgSender(),nftId,USE_USDT,FMarkets[nftId].tokenPrice);
+        } 
     }
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {

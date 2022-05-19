@@ -462,11 +462,15 @@ contract AuctionMarket is Ownable {
         address owner;
         uint256 num;
         uint256 price;
+        uint256 sellType;
         address newestBuyer;
         uint256 timeLast;
         uint256 newestTime;
         uint256 state; //0:free, 1:onsale, 2:cancelSell, 3:bought ,4 retrieval
     }
+
+    uint256 constant USE_MAIN = 0;
+    uint256 constant USE_USDT = 1;
 
     mapping(uint256 => Lmarket) public AMarkets;
 
@@ -476,21 +480,22 @@ contract AuctionMarket is Ownable {
         nftAddress = nft;
     }
 
-    event Sell(address seller,uint256 nftId,uint256 nftPricet,uint256 timeLast);
-    event CancelSell(address canceler, uint256 tokenId);
-    event Bid(address bider,uint256 tokenId, uint256 price,uint256 newStartTime);
-    event Claim(address claimer,uint256 tokenId);
-    event Retrieval(address retrievaler,uint256 tokenId);
+    event AuctionSell(address seller,uint256 nftId,uint256 sellType,uint256 nftPricet,uint256 timeLast);
+    event AuctionCancelSell(address canceler, uint256 tokenId);
+    event AuctionBid(address bider,uint256 tokenId,uint256 bidType, uint256 price,uint256 newStartTime);
+    event AuctionClaim(address claimer,uint256 tokenId);
+    event AuctionRetrieval(address retrievaler,uint256 tokenId);
 
     function changeMinBid(uint256 addBid) external onlyOwner(){
         bidAdd = addBid;
     }
 
-    function sell(uint256 nftId,uint256 nftPrice,uint256 lastTime) external {
+    function sell(uint256 nftId,uint256 sellType,uint256 nftPrice,uint256 lastTime) external {
         Lmarket memory sellNft;
         sellNft.owner = _msgSender();
         sellNft.num = globalId;
         sellNft.price = nftPrice;
+        sellNft.sellType = sellType;
         sellNft.state = 1;
         sellNft.newestTime = block.timestamp;
         sellNft.timeLast = lastTime;
@@ -500,7 +505,7 @@ contract AuctionMarket is Ownable {
         IERC721(nftAddress).safeTransferFrom(_msgSender(), address(this), nftId);
         globalId ++;
 
-        emit Sell(_msgSender(),nftId,nftPrice,lastTime);
+        emit AuctionSell(_msgSender(),nftId,sellType,nftPrice,lastTime);
     }
 
     function cancelSell(uint256 nftId) external {
@@ -508,19 +513,29 @@ contract AuctionMarket is Ownable {
         require(AMarkets[nftId].state == 1,"not onsell");
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         AMarkets[nftId].state = 2;
-        emit CancelSell(_msgSender(),nftId);
+        emit AuctionCancelSell(_msgSender(),nftId);
     }
 
-    function bid(uint256 nftId) external payable {
+    function bid(uint256 nftId,uint256 bidPrice) external payable {
         require(AMarkets[nftId].state == 1,"not onsell");
         require(AMarkets[nftId].newestTime+AMarkets[nftId].timeLast>=block.timestamp,"cannot bid already");
-        require(AMarkets[nftId].price+bidAdd<=msg.value,"too less value");
+        
+        if(AMarkets[nftId].sellType==USE_MAIN){
+            require(AMarkets[nftId].price+bidAdd<=msg.value,"too less value");
+            payable(address(AMarkets[nftId].newestBuyer)).transfer(AMarkets[nftId].price);
+        }else{
 
-        payable(address(AMarkets[nftId].newestBuyer)).transfer(AMarkets[nftId].price);
+        }
+        
         AMarkets[nftId].price = msg.value;
         AMarkets[nftId].newestBuyer = _msgSender();
         AMarkets[nftId].newestTime = block.timestamp;
-        emit Bid(_msgSender(),nftId,msg.value,block.timestamp);
+
+        if(AMarkets[nftId].sellType==USE_MAIN){
+            emit AuctionBid(_msgSender(),nftId,USE_MAIN,msg.value,block.timestamp);
+        }else{
+            emit AuctionBid(_msgSender(),nftId,USE_USDT,bidPrice,block.timestamp);
+        }
     }
 
     function claim(uint256 nftId) external {
@@ -529,7 +544,7 @@ contract AuctionMarket is Ownable {
         payable(address(AMarkets[nftId].owner)).transfer(AMarkets[nftId].price);
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         AMarkets[nftId].state = 3;
-        emit Claim(_msgSender(),nftId);
+        emit AuctionClaim(_msgSender(),nftId);
     }
 
     function retrieval(uint256 nftId) external {
@@ -539,7 +554,7 @@ contract AuctionMarket is Ownable {
         
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         AMarkets[nftId].state = 4;
-        emit Retrieval(_msgSender(),nftId);
+        emit AuctionRetrieval(_msgSender(),nftId);
     }
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
