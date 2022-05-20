@@ -596,6 +596,16 @@ contract AuctionMarket is Ownable {
     function cancelSell(uint256 nftId) external {
         require(_msgSender() == AMarkets[nftId].owner,"not NFT owner");
         require(AMarkets[nftId].state == 1,"not onsell");
+        if(AMarkets[nftId].sellType==USE_MAIN){
+            if(AMarkets[nftId].newestBuyer!=address(0)){
+                payable(address(AMarkets[nftId].newestBuyer)).transfer(AMarkets[nftId].price);
+            }
+        }else{
+            if(AMarkets[nftId].newestBuyer!=address(0)){
+                (bool success,) = address(tokenAddress).call(abi.encodeWithSignature("transferFrom(address,address,uint256)",transitAddress,AMarkets[nftId].newestBuyer, AMarkets[nftId].price));
+                require(success,"token transfer to buyer fail");
+            }
+        }
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         AMarkets[nftId].state = 2;
         emit AuctionCancelSell(_msgSender(),nftId);
@@ -611,8 +621,16 @@ contract AuctionMarket is Ownable {
             AMarkets[nftId].price = msg.value;
         }else{
             require(AMarkets[nftId].price+tokenBidAdd<=bidPrice,"too less value");
-            IERC20(tokenAddress).transferFrom(_msgSender(), transitAddress, bidPrice);
-            IERC20(tokenAddress).transferFrom(transitAddress,AMarkets[nftId].newestBuyer, AMarkets[nftId].price);
+            (bool success,) = address(tokenAddress).call(abi.encodeWithSignature("transferFrom(address,address,uint256)",_msgSender(),transitAddress,bidPrice));
+            require(success,"token transfer to transitAddress fail");
+
+            if(AMarkets[nftId].newestBuyer!=address(0)){
+                (success,) = address(tokenAddress).call(abi.encodeWithSignature("transferFrom(address,address,uint256)",transitAddress,AMarkets[nftId].newestBuyer,AMarkets[nftId].price));
+                require(success,"token transfer to buyer fail");
+            }
+            
+            // IERC20(tokenAddress).transferFrom(_msgSender(), transitAddress, bidPrice);
+            // IERC20(tokenAddress).transferFrom(transitAddress,AMarkets[nftId].newestBuyer, AMarkets[nftId].price);
             AMarkets[nftId].price = bidPrice;
         }
         
@@ -632,7 +650,9 @@ contract AuctionMarket is Ownable {
         if(AMarkets[nftId].sellType==USE_MAIN){
             payable(address(AMarkets[nftId].owner)).transfer(AMarkets[nftId].price);
         }else{
-             IERC20(tokenAddress).transferFrom(transitAddress,AMarkets[nftId].owner, AMarkets[nftId].price);
+            (bool success,) = address(tokenAddress).call(abi.encodeWithSignature("transferFrom(address,address,uint256)",_msgSender(),AMarkets[nftId].owner,AMarkets[nftId].price));
+            require(success,"token transfer fail");
+            // IERC20(tokenAddress).transferFrom(transitAddress,AMarkets[nftId].owner, AMarkets[nftId].price);
         }
         
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);

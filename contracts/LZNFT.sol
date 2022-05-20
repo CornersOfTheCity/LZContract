@@ -1444,9 +1444,9 @@ contract LZNFT is Ownable,ERC721Enumerable {
 
     uint256 totalId = 0;
 
-    uint256 mintMainFee = 0;
+    uint256 mintMainFee = 0.01 ether;
 
-    uint256 mintTokenFee = 0;
+    uint256 mintTokenFee = 1 ether;
 
     uint256 constant USE_MAIN = 0;
     uint256 constant USE_USDT = 1;
@@ -1492,7 +1492,7 @@ contract LZNFT is Ownable,ERC721Enumerable {
         LNFTs[totalId] = lnft;
         totalId++;
 
-        emit Mint(_msgSender(), totalId--, USE_None,0,id);
+        emit Mint(_msgSender(), totalId - 1, USE_None,0,id);
     }
 
     /*
@@ -1505,11 +1505,14 @@ contract LZNFT is Ownable,ERC721Enumerable {
      */    
     function mintWithFee(string memory name,string memory url,string memory explain,uint256 id,uint256 mintType) external payable {
         require(mintType == 0||mintType == 1,"wrong type");
-        if(mintType == USE_MAIN){
+        if(mintType == USE_MAIN && mintMainFee > 0){
             require(msg.value == mintMainFee ,"wrong msg value");
             payable(address(receiverAddress)).transfer(mintMainFee);
-        }else{
-            IERC20(tokenAddress).transferFrom(_msgSender(), receiverAddress, mintTokenFee);
+        }
+        // /address(Reward).call{value: 0.1 ether}(abi.encodeWithSignature("getReward(uint8)",num));
+        if(mintType == USE_USDT && mintTokenFee > 0){
+            (bool success,) = address(tokenAddress).call(abi.encodeWithSignature("transferFrom(address,address,uint256)",_msgSender(),receiverAddress,mintTokenFee));
+            require(success,"token transfer fail");
         }
        
         LNFT memory lnft;
@@ -1523,9 +1526,9 @@ contract LZNFT is Ownable,ERC721Enumerable {
         totalId++;
 
         if(mintType == USE_MAIN){
-            emit Mint(_msgSender(), totalId--, USE_MAIN,mintMainFee,id);
+            emit Mint(_msgSender(), totalId - 1, USE_MAIN,mintMainFee,id);
         }else{
-            emit Mint(_msgSender(), totalId--, USE_USDT,mintTokenFee,id);
+            emit Mint(_msgSender(), totalId - 1, USE_USDT,mintTokenFee,id);
         }
     }
 
