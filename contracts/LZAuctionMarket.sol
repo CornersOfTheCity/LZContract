@@ -219,6 +219,81 @@ library SafeMath {
     }
 }
 
+interface IERC20 {
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    /**
+     * @dev Returns the amount of tokens in existence.
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `to`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transfer(address to, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves `amount` tokens from `from` to `to` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+}
+
 interface IERC721Receiver {
     /**
      * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
@@ -453,10 +528,15 @@ interface IERC721 is IERC165 {
 
 contract AuctionMarket is Ownable {
     using SafeMath for uint256;
-    address private nftAddress;
+
+    address nftAddress;
+    address tokenAddress;
+
+    address transitAddress;
 
     //uint256 timeLast = 21600;
-    uint256 bidAdd = 0.01 ether;
+    uint256 mainBidAdd = 0.01 ether;
+    uint256 tokenBidAdd = 1 ether;
 
     struct Lmarket {
         address owner;
@@ -476,8 +556,10 @@ contract AuctionMarket is Ownable {
 
     uint256 public globalId = 0;
 
-    constructor(address nft){
+    constructor(address nft,address usdt,address transit){
         nftAddress = nft;
+        tokenAddress = usdt;
+        transitAddress = transit;
     }
 
     event AuctionSell(address seller,uint256 nftId,uint256 sellType,uint256 nftPricet,uint256 timeLast);
@@ -486,8 +568,11 @@ contract AuctionMarket is Ownable {
     event AuctionClaim(address claimer,uint256 tokenId);
     event AuctionRetrieval(address retrievaler,uint256 tokenId);
 
-    function changeMinBid(uint256 addBid) external onlyOwner(){
-        bidAdd = addBid;
+    function changeMainBidAdd(uint256 addBid) external onlyOwner(){
+        mainBidAdd = addBid;
+    }
+    function changeTokenBidAdd(uint256 addBid) external onlyOwner(){
+        tokenBidAdd = addBid;
     }
 
     function sell(uint256 nftId,uint256 sellType,uint256 nftPrice,uint256 lastTime) external {
@@ -521,13 +606,16 @@ contract AuctionMarket is Ownable {
         require(AMarkets[nftId].newestTime+AMarkets[nftId].timeLast>=block.timestamp,"cannot bid already");
         
         if(AMarkets[nftId].sellType==USE_MAIN){
-            require(AMarkets[nftId].price+bidAdd<=msg.value,"too less value");
+            require(AMarkets[nftId].price+mainBidAdd<=msg.value,"too less value");
             payable(address(AMarkets[nftId].newestBuyer)).transfer(AMarkets[nftId].price);
+            AMarkets[nftId].price = msg.value;
         }else{
-
+            require(AMarkets[nftId].price+tokenBidAdd<=bidPrice,"too less value");
+            IERC20(tokenAddress).transferFrom(_msgSender(), transitAddress, bidPrice);
+            IERC20(tokenAddress).transferFrom(transitAddress,AMarkets[nftId].newestBuyer, AMarkets[nftId].price);
+            AMarkets[nftId].price = bidPrice;
         }
         
-        AMarkets[nftId].price = msg.value;
         AMarkets[nftId].newestBuyer = _msgSender();
         AMarkets[nftId].newestTime = block.timestamp;
 
@@ -541,7 +629,12 @@ contract AuctionMarket is Ownable {
     function claim(uint256 nftId) external {
         require(AMarkets[nftId].newestTime+AMarkets[nftId].timeLast<block.timestamp,"cannot claim now");
         require(AMarkets[nftId].newestBuyer == _msgSender(),"not the newest buyer");
-        payable(address(AMarkets[nftId].owner)).transfer(AMarkets[nftId].price);
+        if(AMarkets[nftId].sellType==USE_MAIN){
+            payable(address(AMarkets[nftId].owner)).transfer(AMarkets[nftId].price);
+        }else{
+             IERC20(tokenAddress).transferFrom(transitAddress,AMarkets[nftId].owner, AMarkets[nftId].price);
+        }
+        
         IERC721(nftAddress).safeTransferFrom(address(this),_msgSender(),nftId);
         AMarkets[nftId].state = 3;
         emit AuctionClaim(_msgSender(),nftId);
